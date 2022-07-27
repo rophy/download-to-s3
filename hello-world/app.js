@@ -46,55 +46,73 @@ function getWithRedirects(url, callback) {
     });
 }
 
+function getFilename(download_url, response) {
+    // Try to determine filename.
+    let filename = null;
+
+    // Ideally, this is a binary file, and we have the content-disposition header.
+    let disposition = hasHeader("content-disposition", response.headers);
+    if (disposition) {
+        disposition = contentDisposition.parse(disposition);
+        if (disposition.parameters.filename) {
+            filename = disposition.parameters.filename;
+        }
+    }
+
+    // Fall back to filename from URL.
+    if (!filename) {
+        filename = path.basename(url.parse(download_url).pathname);
+    }
+
+    // In case we cannot parse any filename, give a reasonable default.
+    if (!filename) {
+        filename = `${Date.now()}.downloaded.contents`;
+    }
+    return filename;
+}
+
 exports.lambdaHandler = async (event, context) => {
     if (!event.body) return new Error("body is missing");
     try {
+
         let message = JSON.parse(event.body);
         console.log("message", message);
         const s3 = new AWS.S3({'apiVersion':'2006-03-01'});
-        const piper = new stream.PassThrough();
+
         const prom = new Promise((resolve, reject) => {
-            getWithRedirects(message.download_url, function(resp) {
+            getWithRedirects(message.download_url, response => resolve(response));
+        })
 
-                // Try to determine filename.
-                let filename = null;
-
-                // Ideally, this is a binary file, and we have the content-disposition header.
-                let disposition = hasHeader("content-disposition", resp.headers);
-                if (disposition) {
-                    disposition = contentDisposition.parse(disposition);
-                    if (disposition.parameters.filename) {
-                        filename = disposition.parameters.filename;
-                    }
-                }
-
-                // Fall back to filename from URL.
-                if (!filename) {
-                    filename = path.basename(url.parse(message.download_url).pathname);
-                }
-
-                // In case we cannot parse any filename, give a reasonable default.
-                if (!filename) {
-                    filename = `${Date.now()}.downloaded.contents`;
-                }
-
-                resp.pipe(piper);
+        .then((response) => {
+            let filename = getFilename(message.download_url, response);
+            // Stream the download to S3.
+            let piper = new stream.PassThrough();
+            response.pipe(piper);
+            return new Promise((resolve, reject) => {
                 s3.upload({
                     Bucket: "***REMOVED***",
                     Key: `shared/${Date.now()}/${filename}`,
                     Body: piper
                 }, (err, data) => {
-                    console.log("after upload", err, data);
+                    console.log("after s3 upload", err, data);
                     if (err) return reject(err);
                     return resolve(data);
                 });
             });
+        })
+        .then((data) => {
+            // Generate a presigned URL.
+            return s3.getSignedUrlPromise("getObject", {
+                Bucket: data.Bucket,
+                Key: data.Key,
+                Expires: message.expiration || 3600
+            });
         });
 
-        let response = await prom;
+        let presignedUrl = await prom;
         return {
             "statusCode": 200,
-            "body": response || "OK"
+            "body": presignedUrl
         };
     }
     catch (err) {
