@@ -1,11 +1,10 @@
-const http = require('http');
-const fs = require('fs');
-const AWS = require('aws-sdk');
+const https = require("https");
+const stream = require("stream");
+const url = require("url");
+const path = require("path");
+const AWS = require("aws-sdk");
+var contentDisposition = require("content-disposition");
 
-
-// const axios = require('axios')
-// const url = 'http://checkip.amazonaws.com/';
-let response;
 
 /**
  *
@@ -19,48 +18,87 @@ let response;
  * @returns {Object} object - API Gateway Lambda Proxy Output Format
  * 
  */
+
+function hasHeader(header, headers) {
+    var headers = Object.keys(headers || this.headers)
+      , lheaders = headers.map(function (h) {return h.toLowerCase()})
+      ;
+    header = header.toLowerCase()
+    for (var i=0;i<lheaders.length;i++) {
+      if (lheaders[i] === header) return headers[i];
+    }
+    return false;
+}
+
+function getWithRedirects(url, callback) {
+    console.log("getWithRedirects", url);
+    https.get(url, response => {
+        if (response.statusCode >= 300
+            && response.statusCode < 400
+            && hasHeader('location', response.headers)) {
+
+            let location = response.headers[hasHeader('location', response.headers)];
+            if (location) {
+                return getWithRedirects(location, callback);
+            }
+        }
+        callback(response);
+    });
+}
+
 exports.lambdaHandler = async (event, context) => {
     if (!event.body) return new Error("body is missing");
+    try {
+        let message = JSON.parse(event.body);
+        console.log("message", message);
+        const s3 = new AWS.S3({'apiVersion':'2006-03-01'});
+        const piper = new stream.PassThrough();
+        const prom = new Promise((resolve, reject) => {
+            getWithRedirects(message.download_url, function(resp) {
 
-    const s3 = new AWS.S3({'apiVersion':'2006-03-01'});
+                // Try to determine filename.
+                let filename = null;
 
-    const prom = new Promise((resolve, reject) => {
-        s3.listObjects({
-            Bucket: "***REMOVED***",
-            Prefix: "shared/"
-        }, (err, data) => {
-            if (err) return reject(err);
-            return resolve(data.Contents);
+                // Ideally, this is a binary file, and we have the content-disposition header.
+                let disposition = hasHeader("content-disposition", resp.headers);
+                if (disposition) {
+                    disposition = contentDisposition.parse(disposition);
+                    if (disposition.parameters.filename) {
+                        filename = disposition.parameters.filename;
+                    }
+                }
+
+                // Fall back to filename from URL.
+                if (!filename) {
+                    filename = path.basename(url.parse(message.download_url).pathname);
+                }
+
+                // In case we cannot parse any filename, give a reasonable default.
+                if (!filename) {
+                    filename = `${Date.now()}.downloaded.contents`;
+                }
+
+                resp.pipe(piper);
+                s3.upload({
+                    Bucket: "***REMOVED***",
+                    Key: `shared/${Date.now()}/${filename}`,
+                    Body: piper
+                }, (err, data) => {
+                    console.log("after upload", err, data);
+                    if (err) return reject(err);
+                    return resolve(data);
+                });
+            });
         });
 
-        return;
-        
-        http.get(event.body, function(resp) {
-            resp.pipe(file);
-    
-            file.on('finish', () => {
-                return {
-                    "statusCode": 200,
-                    "body": "OK"
-                };
-            });
-
-            file.on('error', (err) => {
-                return {
-                    "statusCode": 500,
-                    "body": err
-                };
-            });
-        });    
-    });
-    try {
-        response = await prom;
+        let response = await prom;
         return {
             "statusCode": 200,
-            "body": response
+            "body": response || "OK"
         };
     }
     catch (err) {
+        console.error(err);
         return {
             "statusCode": 500,
             "body": err
