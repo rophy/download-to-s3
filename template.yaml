@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  sam-app
+  download-to-s3
 
-  Sample SAM Template for sam-app
+  Download a file, upload to S3, and return a presigned URL.
   
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -11,31 +11,35 @@ Globals:
     Timeout: 900
 
 Resources:
-  HelloWorldFunction:
+  DownloadFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: hello-world/
+      CodeUri: lambda/
       Handler: app.lambdaHandler
       Runtime: nodejs14.x
       Architectures:
         - x86_64
       Events:
-        HelloWorld:
+        Download:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
-            Path: /hello
+            Path: /
             Method: post
+      Environment:
+        Variables:
+          BUCKET: MY_BUCKET_NAME
+          PREFIX: MY_BUCKET_PREFIX
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  WebApi:
+    Description: "API Gateway endpoint URL for Prod stage the function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/download-to-s3/"
+  DownloadFunction:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt DownloadFunction.Arn
+  DownloadFunctionIamRole:
+    Description: "Implicit IAM Role created for the function"
+    Value: !GetAtt DownloadFunctionRole.Arn

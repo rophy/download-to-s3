@@ -3,7 +3,11 @@ const stream = require("stream");
 const url = require("url");
 const path = require("path");
 const AWS = require("aws-sdk");
-var contentDisposition = require("content-disposition");
+const contentDisposition = require("content-disposition");
+
+
+const BUCKET = process.env.BUCKET;
+const PREFIX = process.env.PREFIX;
 
 
 /**
@@ -90,8 +94,8 @@ exports.lambdaHandler = async (event, context) => {
             response.pipe(piper);
             return new Promise((resolve, reject) => {
                 s3.upload({
-                    Bucket: "***REMOVED***",
-                    Key: `shared/${Date.now()}/${filename}`,
+                    Bucket: BUCKET,
+                    Key: `${PREFIX}/${Date.now()}/${filename}`,
                     Body: piper
                 }, (err, data) => {
                     console.log("after s3 upload", err, data);
