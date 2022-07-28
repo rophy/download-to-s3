@@ -55,7 +55,7 @@ function getFilename(download_url, response) {
     let filename = null;
 
     // Ideally, this is a binary file, and we have the content-disposition header.
-    let disposition = hasHeader("content-disposition", response.headers);
+    let disposition = response.headers[hasHeader("content-disposition", response.headers)];
     if (disposition) {
         disposition = contentDisposition.parse(disposition);
         if (disposition.parameters.filename) {
