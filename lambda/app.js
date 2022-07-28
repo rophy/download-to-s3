@@ -88,7 +88,12 @@ exports.lambdaHandler = async (event, context) => {
         })
 
         .then((response) => {
-            let filename = getFilename(message.download_url, response);
+            let filename = null;
+            if (message.rename_file) {
+                filename = message.rename_file;
+            } else {
+                filename = getFilename(message.download_url, response);
+            }
             // Stream the download to S3.
             let piper = new stream.PassThrough();
             response.pipe(piper);
