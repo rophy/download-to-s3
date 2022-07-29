@@ -83,42 +83,41 @@ exports.lambdaHandler = async (event, context) => {
         console.log("message", message);
         const s3 = new AWS.S3({'apiVersion':'2006-03-01'});
 
-        const prom = new Promise((resolve, reject) => {
+        let response = await new Promise((resolve, reject) => {
             getWithRedirects(message.download_url, response => resolve(response));
-        })
+        });
 
-        .then((response) => {
-            let filename = null;
-            if (message.rename_file) {
-                filename = message.rename_file;
-            } else {
-                filename = getFilename(message.download_url, response);
-            }
-            // Stream the download to S3.
-            let piper = new stream.PassThrough();
-            response.pipe(piper);
-            return new Promise((resolve, reject) => {
-                s3.upload({
-                    Bucket: BUCKET,
-                    Key: `${PREFIX}/${Date.now()}/${filename}`,
-                    Body: piper
-                }, (err, data) => {
-                    console.log("after s3 upload", err, data);
-                    if (err) return reject(err);
-                    return resolve(data);
-                });
-            });
-        })
-        .then((data) => {
-            // Generate a presigned URL.
-            return s3.getSignedUrlPromise("getObject", {
-                Bucket: data.Bucket,
-                Key: data.Key,
-                Expires: message.expiration || 3600
+        let filename = null;
+        if (message.rename_file) {
+            filename = message.rename_file;
+        } else {
+            filename = getFilename(message.download_url, response);
+        }
+
+        // Stream the download to S3.
+        let piper = new stream.PassThrough();
+        response.pipe(piper);
+
+        let data = await new Promise((resolve, reject) => {
+            s3.upload({
+                Bucket: BUCKET,
+                Key: `${PREFIX}/${Date.now()}/${filename}`,
+                Body: piper
+            }, (err, data) => {
+                console.log("after s3 upload", err, data);
+                if (err) return reject(err);
+                return resolve(data);
             });
         });
 
-        let presignedUrl = await prom;
+
+        // Generate a presigned URL.
+        let presignedUrl = await s3.getSignedUrlPromise("getObject", {
+            Bucket: data.Bucket,
+            Key: data.Key,
+            Expires: message.expiration || 3600
+        });
+
         return {
             "statusCode": 200,
             "body": presignedUrl
