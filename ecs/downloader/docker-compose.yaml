@@ -1,0 +1,7 @@
+version: "3.9"
+services:
+  downloader:
+    image: 572921885201.dkr.ecr.ap-northeast-1.amazonaws.com/downloader
+    build: .
+    volumes:
+      - .:/app
