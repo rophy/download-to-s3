@@ -27,8 +27,8 @@ Resources:
             Method: post
       Environment:
         Variables:
-          BUCKET: MY_BUCKET_NAME
-          PREFIX: MY_BUCKET_PREFIX
+          BUCKET: ***REMOVED***
+          PREFIX: shared
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function

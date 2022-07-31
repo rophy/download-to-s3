@@ -5,7 +5,12 @@ const path = require("path");
 const AWS = require("aws-sdk");
 const contentDisposition = require("content-disposition");
 
+const argv = require('yargs/yargs')(process.argv.slice(2))
+    .usage('Usage: $0 -download_url URL [-rename_to FILE_NAME] [-expires-in SECONDS] [-email EMAIL]')
+    .demandOption(['download_url'])
+    .argv;
 
+console.log.og(argv);
 const BUCKET = process.env.BUCKET;
 const PREFIX = process.env.PREFIX;
 
