@@ -1,18 +1,4 @@
-const https = require("https");
-const stream = require("stream");
-const url = require("url");
-const path = require("path");
 const AWS = require("aws-sdk");
-const contentDisposition = require("content-disposition");
-
-const argv = require('yargs/yargs')(process.argv.slice(2))
-    .usage('Usage: $0 -download_url URL [-rename_to FILE_NAME] [-expires-in SECONDS] [-email EMAIL]')
-    .demandOption(['download_url'])
-    .argv;
-
-console.log.og(argv);
-const BUCKET = process.env.BUCKET;
-const PREFIX = process.env.PREFIX;
 
 
 /**
@@ -28,104 +14,60 @@ const PREFIX = process.env.PREFIX;
  * 
  */
 
-function hasHeader(header, headers) {
-    var headers = Object.keys(headers || this.headers)
-      , lheaders = headers.map(function (h) {return h.toLowerCase()})
-      ;
-    header = header.toLowerCase()
-    for (var i=0;i<lheaders.length;i++) {
-      if (lheaders[i] === header) return headers[i];
-    }
-    return false;
-}
-
-function getWithRedirects(url, callback) {
-    console.log("getWithRedirects", url);
-    https.get(url, response => {
-        if (response.statusCode >= 300
-            && response.statusCode < 400
-            && hasHeader('location', response.headers)) {
-
-            let location = response.headers[hasHeader('location', response.headers)];
-            if (location) {
-                return getWithRedirects(location, callback);
-            }
-        }
-        callback(response);
-    });
-}
-
-function getFilename(download_url, response) {
-    // Try to determine filename.
-    let filename = null;
-
-    // Ideally, this is a binary file, and we have the content-disposition header.
-    let disposition = response.headers[hasHeader("content-disposition", response.headers)];
-    if (disposition) {
-        disposition = contentDisposition.parse(disposition);
-        if (disposition.parameters.filename) {
-            filename = disposition.parameters.filename;
-        }
-    }
-
-    // Fall back to filename from URL.
-    if (!filename) {
-        filename = path.basename(url.parse(download_url).pathname);
-    }
-
-    // In case we cannot parse any filename, give a reasonable default.
-    if (!filename) {
-        filename = `${Date.now()}.downloaded.contents`;
-    }
-    return filename;
-}
-
 exports.lambdaHandler = async (event, context) => {
     if (!event.body) return new Error("body is missing");
     try {
 
         let message = JSON.parse(event.body);
         console.log("message", message);
-        const s3 = new AWS.S3({'apiVersion':'2006-03-01'});
+        const stepfunctions = new AWS.StepFunctions();
 
-        let response = await new Promise((resolve, reject) => {
-            getWithRedirects(message.download_url, response => resolve(response));
-        });
+        if (!message.download_url) return {
+            "statusCode": 400,
+            "body": "missing required param 'download_url'"
+        };
 
-        let filename = null;
-        if (message.rename_file) {
-            filename = message.rename_file;
-        } else {
-            filename = getFilename(message.download_url, response);
+        if (!message.email_to) return {
+            "statusCode": 400,
+            "body": "missing required param 'email_to'"
+        };
+
+        let input = {
+          "downloader_command": [
+            "node",
+            "app.js",
+            "--download_url",
+            message.download_url,
+            "--email_to",
+            message.email_to
+          ]
+        };
+
+        if (message.rename_to) {
+            input.download_command.push("--rename_to");
+            input.download_command.push(message.rename_to);
         }
 
-        // Stream the download to S3.
-        let piper = new stream.PassThrough();
-        response.pipe(piper);
+        if (message.expires_in) {
+            input.download_command.push("--expires_in");
+            input.download_command.push(message.expires_in);
+        }
 
-        let data = await new Promise((resolve, reject) => {
-            s3.upload({
-                Bucket: BUCKET,
-                Key: `${PREFIX}/${Date.now()}/${filename}`,
-                Body: piper
-            }, (err, data) => {
-                console.log("after s3 upload", err, data);
+        input = JSON.stringify(input);
+
+        let response = await new Promise((resolve, reject) => {
+            stepfunctions.startExecution({
+                stateMachineArn: "arn:aws:states:ap-northeast-1:572921885201:stateMachine:DownloadToS3",
+                input: input
+            }, (err, response) => {
                 if (err) return reject(err);
-                return resolve(data);
+                else return resolve(response);
             });
-        });
-
-
-        // Generate a presigned URL.
-        let presignedUrl = await s3.getSignedUrlPromise("getObject", {
-            Bucket: data.Bucket,
-            Key: data.Key,
-            Expires: message.expiration || 3600
-        });
+        })
 
         return {
             "statusCode": 200,
-            "body": presignedUrl
+            "body": response
         };
     }
     catch (err) {

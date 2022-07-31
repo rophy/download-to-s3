@@ -1,5 +1,5 @@
 {
-  "body": "{\"message\": \"hello world\"}",
+  "body": "{\"download_url\":\"https://github.com/derailed/k9s/releases/download/v0.26.0/k9s_Windows_x86_64.tar.gz\",\"email_to\":\"rophy123+user@gmail.com\"}",
   "resource": "/{proxy+}",
   "path": "/path/to/resource",
   "httpMethod": "POST",
