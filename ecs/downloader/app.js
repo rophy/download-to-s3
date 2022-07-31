@@ -110,6 +110,7 @@ downloader = async () => {
 
 
     // Generate a presigned URL.
+    console.log("Generating presigned URL...");
     let presignedUrl = await s3.getSignedUrlPromise("getObject", {
         Bucket: data.Bucket,
         Key: data.Key,
@@ -118,6 +119,7 @@ downloader = async () => {
     let expiration = Date.now() + argv.expires_in*1000;
 
     // Store the state in ddb.
+    console.log("Saving states in dynamodb...");
     const dynamodb = new AWS.DynamoDB();
 
     let params = {
@@ -169,6 +171,28 @@ downloader = async () => {
             else return resolve(data);
         });
     });
+
+    // Send mail
+    if (argv.email_to) {
+        console.log("Sending email notification...");
+        const ses = new AWS.SES({apiVersion: '2010-12-01'});
+        await ses.sendEmail({
+            "Destination": {
+                "ToAddresses": argv.email_to.split(",")
+            },
+            "Message": {
+                "Subject": {
+                    "Data": "Your requested file is ready for download"
+                },
+                "Body": {
+                    "Text": {
+                        "Data": presignedUrl
+                    }
+                }
+            },
+            "Source": "***REMOVED***"
+        }).promise();
+    }
 
     console.log(presignedUrl);
 
