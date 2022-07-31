@@ -1,15 +1,16 @@
 
-["BUCKET", "PREFIX"].forEach( envName => {
+["BUCKET"].forEach( envName => {
     if (!process.env[envName]) throw new Error(`missing env var ${envName}`)
 });
 
 const argv = require('yargs/yargs')(process.argv.slice(2))
     .usage('Usage: $0 --download_url=URL [--rename_to=FILE_NAME] [--expires_in=SECONDS] [--emai_to=EMAIL]')
     .describe("download_url", "direct download link of the file")
+    .describe("s3_prefix", "s3 prefix to upload file")
     .describe("email_to", "send the s3 download link to this email address")
     .describe("expires_in", "[default: 3600] seconds which the link will expire")
     .describe("rename_to", "rename downloaded file in s3")
-    .demandOption(['download_url'])
+    .demandOption(["download_url","s3_prefix"])
     .argv;
 
 const https = require("https");
@@ -17,6 +18,7 @@ const stream = require("stream");
 const url = require("url");
 const path = require("path");
 const AWS = require("aws-sdk");
+const { S3Client } = require("@aws-sdk/client-s3");
 const contentDisposition = require("content-disposition");
 
 
@@ -73,60 +75,62 @@ function getFilename(download_url, response) {
 }
 
 downloader = async () => {
-    try {
 
-        const s3 = new AWS.S3({'apiVersion':'2006-03-01'});
+    const s3 = new AWS.S3({'apiVersion':'2006-03-01'});
 
-        let response = await new Promise((resolve, reject) => {
-            getWithRedirects(argv.download_url, response => resolve(response));
-        });
+    let response = await new Promise((resolve, reject) => {
+        getWithRedirects(argv.download_url, response => resolve(response));
+    });
 
-        let filename = null;
-        if (argv.rename_to) {
-            filename = argv.rename_to;
-        } else {
-            filename = getFilename(argv.download_url, response);
-        }
-        
-
-        // Stream the download to S3.
-        let piper = new stream.PassThrough();
-        response.pipe(piper);
-
-        let s3Key = `${process.env.PREFIX}/${Date.now()}/${filename}`;
-        console.log(`Uploading to: s3://${process.env.BUCKET}/${s3Key}`)
-
-        let data = await new Promise((resolve, reject) => {
-            s3.upload({
-                Bucket: process.env.BUCKET,
-                Key: s3Key,
-                Body: piper
-            }, (err, data) => {
-                if (err) return reject(err);
-                return resolve(data);
-            });
-        });
-
-
-        // Generate a presigned URL.
-        let presignedUrl = await s3.getSignedUrlPromise("getObject", {
-            Bucket: data.Bucket,
-            Key: data.Key,
-            Expires: argv.expires_in || 3600
-        });
-
-        return {
-            "statusCode": 200,
-            "body": presignedUrl
-        };
+    let filename = null;
+    if (argv.rename_to) {
+        filename = argv.rename_to;
+    } else {
+        filename = getFilename(argv.download_url, response);
     }
-    catch (err) {
-        console.error(err);
-        return {
-            "statusCode": 500,
-            "body": err
-        };
-    }
+    
+
+    // Stream the download to S3.
+    let piper = new stream.PassThrough();
+    response.pipe(piper);
+
+    let s3Key = `${argv.s3_prefix}/file/${filename}`;
+    console.log(`Uploading to: s3://${process.env.BUCKET}/${s3Key}`)
+
+    let data = await new Promise((resolve, reject) => {
+        s3.upload({
+            Bucket: process.env.BUCKET,
+            Key: s3Key,
+            Body: piper
+        }, (err, data) => {
+            if (err) return reject(err);
+            return resolve(data);
+        });
+    });
+
+
+    // Generate a presigned URL.
+    let presignedUrl = await s3.getSignedUrlPromise("getObject", {
+        Bucket: data.Bucket,
+        Key: data.Key,
+        Expires: argv.expires_in || 3600
+    });
+
+    await new Promise((resolve, reject) => {
+        // .DONE is used for workflow communication.
+        let s3KeyDone = `${argv.s3_prefix}/.DONE`;
+        s3.putObject({
+            Bucket: process.env.BUCKET,
+            Key: s3KeyDone,
+            Body: presignedUrl
+        }, (err, data) => {
+            if (err) return reject(err);
+            else return resolve(data);
+        });
+    });
+
+    console.log(presignedUrl);
+
 };
 
 downloader();
