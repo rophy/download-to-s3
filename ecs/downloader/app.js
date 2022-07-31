@@ -198,5 +198,8 @@ downloader = async () => {
 
 };
 
-downloader();
-
+downloader()
+.catch(err => {
+    console.error(err);
+    process.exit(1);
+});
