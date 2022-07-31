@@ -46,6 +46,8 @@ Resources:
             Path: /
             Method: post
             RestApiId: !Ref ApiGateway
+            Auth:
+              ApiKeyRequired: true
       Environment:
         Variables:
           BUCKET: ***REMOVED***
