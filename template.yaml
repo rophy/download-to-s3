@@ -23,6 +23,8 @@ Resources:
         AllowMethods: "'OPTIONS,POST'"
         AllowHeaders: "'*'"
         AllowOrigin: "'*'"
+      EndpointConfiguration:
+        Type: REGIONAL
       Domain:
         DomainName: api.rophy.online
         CertificateArn: arn:aws:acm:ap-northeast-1:572921885201:certificate/cfc17c2d-d8e9-40e4-9e85-d10124c73919
@@ -48,7 +50,7 @@ Resources:
         Variables:
           BUCKET: ***REMOVED***
           PREFIX: shared
-          CORS_ALLOW_ORIGIN: "*"
+#          CORS_ALLOW_ORIGIN: "'*'"
 
 Outputs:
   WebApi:

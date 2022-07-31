@@ -14,36 +14,37 @@ const AWS = require("aws-sdk");
  * 
  */
 
+function respond(statusCode, body) {
+    try {
+        if (typeof body === "string") {
+            body = { "message": body };
+        }
+        body = JSON.stringify(body);
+    } catch (err) {
+        body = `{ "message": ${body}}`;
+    }
+    return {
+        "headers": {
+            "Access-Control-Allow-Methods": "OPTIONS,POST",
+            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+            "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
+        },
+        "statusCode": statusCode,
+        "body": body
+    }
+}
 
 exports.lambdaHandler = async (event, context) => {
     try {
-        if (!event.body) return {
-            "headers": {
-                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
-            },
-            "statusCode": 400,
-            "body": "missing request payload"
-        }
+        if (!event.body) return respond(400, "missing request payload");
 
         let message = JSON.parse(event.body);
         console.log("message", message);
         const stepfunctions = new AWS.StepFunctions();
 
-        if (!message.download_url) return {
-            "headers": {
-                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
-            },
-            "statusCode": 400,
-            "body": "missing required param 'download_url'"
-        };
+        if (!message.download_url) return respond(400, "missing required param 'download_url'");
 
-        if (!message.email_to) return {
-            "headers": {
-                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
-            },
-            "statusCode": 400,
-            "body": "missing required param 'email_to'"
-        };
+        if (!message.email_to) return respond(400, "missing required param 'email_to'");
 
         let input = {
           "downloader_command": [
@@ -57,13 +58,13 @@ exports.lambdaHandler = async (event, context) => {
         };
 
         if (message.rename_to) {
-            input.download_command.push("--rename_to");
-            input.download_command.push(message.rename_to);
+            input.downloader_command.push("--rename_to");
+            input.downloader_command.push(message.rename_to);
         }
 
         if (message.expires_in) {
-            input.download_command.push("--expires_in");
-            input.download_command.push(message.expires_in);
+            input.downloader_command.push("--expires_in");
+            input.downloader_command.push(message.expires_in.toString());
         }
 
         input = JSON.stringify(input);
@@ -78,22 +79,10 @@ exports.lambdaHandler = async (event, context) => {
             });
         })
 
-        return {
-            "headers": {
-                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
-            },
-            "statusCode": 200,
-            "body": JSON.stringify(response)
-        };
+        return respond(200,response);
     }
     catch (err) {
         console.error(err);
-        return {
-            "headers": {
-                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
-            },
-            "statusCode": 500,
-            "body": err
-        };
+        return respond(500, err);
     }
 };
