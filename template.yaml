@@ -9,8 +9,26 @@ Description: >
 Globals:
   Function:
     Timeout: 900
-
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'content-type'"
+      AllowOrigin: "'*'"
 Resources:
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'OPTIONS,POST'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+      Domain:
+        DomainName: api.rophy.online
+        CertificateArn: arn:aws:acm:ap-northeast-1:572921885201:certificate/cfc17c2d-d8e9-40e4-9e85-d10124c73919
+        EndpointConfiguration: REGIONAL
+        BasePath:
+          - downloader
   DownloadFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -25,19 +43,17 @@ Resources:
           Properties:
             Path: /
             Method: post
+            RestApiId: !Ref ApiGateway
       Environment:
         Variables:
           BUCKET: ***REMOVED***
           PREFIX: shared
-          CORS_ALLOW_ORIGIN: 
+          CORS_ALLOW_ORIGIN: "*"
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   WebApi:
     Description: "API Gateway endpoint URL for Prod stage the function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/download-to-s3/"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/download-to-s3/"
   DownloadFunction:
     Description: "Lambda Function ARN"
     Value: !GetAtt DownloadFunction.Arn
