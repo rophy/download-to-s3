@@ -29,6 +29,7 @@ Resources:
         Variables:
           BUCKET: ***REMOVED***
           PREFIX: shared
+          CORS_ALLOW_ORIGIN: 
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function

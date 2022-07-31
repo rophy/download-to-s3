@@ -14,6 +14,7 @@ const AWS = require("aws-sdk");
  * 
  */
 
+
 exports.lambdaHandler = async (event, context) => {
     if (!event.body) return new Error("body is missing");
     try {
@@ -23,11 +24,17 @@ exports.lambdaHandler = async (event, context) => {
         const stepfunctions = new AWS.StepFunctions();
 
         if (!message.download_url) return {
+            "headers": {
+                "Access-Control-Allow-Origin": ProcessingInstruction.env.CORS_ALLOW_ORIGIN || "*"
+            },
             "statusCode": 400,
             "body": "missing required param 'download_url'"
         };
 
         if (!message.email_to) return {
+            "headers": {
+                "Access-Control-Allow-Origin": ProcessingInstruction.env.CORS_ALLOW_ORIGIN || "*"
+            },
             "statusCode": 400,
             "body": "missing required param 'email_to'"
         };
@@ -66,13 +73,19 @@ exports.lambdaHandler = async (event, context) => {
         })
 
         return {
+            "headers": {
+                "Access-Control-Allow-Origin": ProcessingInstruction.env.CORS_ALLOW_ORIGIN || "*"
+            },
             "statusCode": 200,
-            "body": response
+            "body": JSON.stringify(response)
         };
     }
     catch (err) {
         console.error(err);
         return {
+            "headers": {
+                "Access-Control-Allow-Origin": ProcessingInstruction.env.CORS_ALLOW_ORIGIN || "*"
+            },
             "statusCode": 500,
             "body": err
         };
