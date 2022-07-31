@@ -1,16 +1,17 @@
 
-["BUCKET"].forEach( envName => {
+["S3_BUCKET","S3_PREFIX"].forEach( envName => {
     if (!process.env[envName]) throw new Error(`missing env var ${envName}`)
 });
 
 const argv = require('yargs/yargs')(process.argv.slice(2))
     .usage('Usage: $0 --download_url=URL [--rename_to=FILE_NAME] [--expires_in=SECONDS] [--emai_to=EMAIL]')
     .describe("download_url", "direct download link of the file")
-    .describe("s3_prefix", "s3 prefix to upload file")
     .describe("email_to", "send the s3 download link to this email address")
     .describe("expires_in", "[default: 3600] seconds which the link will expire")
+    .number("expires_in")
+    .default("expires_in", 3600)
     .describe("rename_to", "rename downloaded file in s3")
-    .demandOption(["download_url","s3_prefix"])
+    .demandOption(["download_url"])
     .argv;
 
 const https = require("https");
@@ -18,7 +19,6 @@ const stream = require("stream");
 const url = require("url");
 const path = require("path");
 const AWS = require("aws-sdk");
-const { S3Client } = require("@aws-sdk/client-s3");
 const contentDisposition = require("content-disposition");
 
 
@@ -94,12 +94,12 @@ downloader = async () => {
     let piper = new stream.PassThrough();
     response.pipe(piper);
 
-    let s3Key = `${argv.s3_prefix}/file/${filename}`;
-    console.log(`Uploading to: s3://${process.env.BUCKET}/${s3Key}`)
+    let s3Key = `${process.env.S3_PREFIX}/${Date.now()}/${filename}`;
+    console.log(`Uploading to s3://${process.env.S3_BUCKET}/${s3Key}`)
 
     let data = await new Promise((resolve, reject) => {
         s3.upload({
-            Bucket: process.env.BUCKET,
+            Bucket: process.env.S3_BUCKET,
             Key: s3Key,
             Body: piper
         }, (err, data) => {
@@ -113,17 +113,58 @@ downloader = async () => {
     let presignedUrl = await s3.getSignedUrlPromise("getObject", {
         Bucket: data.Bucket,
         Key: data.Key,
-        Expires: argv.expires_in || 3600
+        Expires: argv.expires_in
+    });
+    let expiration = Date.now() + argv.expires_in*1000;
+
+    // Store the state in ddb.
+    const dynamodb = new AWS.DynamoDB();
+
+    let params = {
+        "TableName": "download-to-s3",
+        "Item": {
+            "expiration": {
+                "N": expiration.toString()
+            },
+            "s3_path": {
+                "S": s3Key
+            }
+        }
+    };
+
+    // Query by sfn_exec_name.
+    if (process.env.STEPFUNCTION_EXECUTION_NAME) {
+        params["Item"]["sfn_exec_name"] = {
+            "S": process.env.STEPFUNCTION_EXECUTION_NAME
+        }
+        params["Item"]["pk"] = {
+            "S": process.env.STEPFUNCTION_EXECUTION_NAME
+        };
+        await new Promise((resolve, reject) => {
+            dynamodb.putItem(params, (err, data) => {
+                if (err) return reject(err);
+                else return resolve(data);
+            });
+        });
+    }
+
+    // Query by s3_path.
+    params["Item"]["pk"] = {
+        "S": s3Key
+    };
+    await new Promise((resolve, reject) => {
+        dynamodb.putItem(params, (err, data) => {
+            if (err) return reject(err);
+            else return resolve(data);
+        });
     });
 
+    // Query by expiration.
+    params["Item"]["pk"] = {
+        "S": "__by_expirations"
+    };
     await new Promise((resolve, reject) => {
-        // .DONE is used for workflow communication.
-        let s3KeyDone = `${argv.s3_prefix}/.DONE`;
-        s3.putObject({
-            Bucket: process.env.BUCKET,
-            Key: s3KeyDone,
-            Body: presignedUrl
-        }, (err, data) => {
+        dynamodb.putItem(params, (err, data) => {
             if (err) return reject(err);
             else return resolve(data);
         });
