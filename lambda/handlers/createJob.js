@@ -16,8 +16,14 @@ const AWS = require("aws-sdk");
 
 
 exports.lambdaHandler = async (event, context) => {
-    if (!event.body) return new Error("body is missing");
     try {
+        if (!event.body) return {
+            "headers": {
+                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
+            },
+            "statusCode": 400,
+            "body": "missing request payload"
+        }
 
         let message = JSON.parse(event.body);
         console.log("message", message);
@@ -25,7 +31,7 @@ exports.lambdaHandler = async (event, context) => {
 
         if (!message.download_url) return {
             "headers": {
-                "Access-Control-Allow-Origin": ProcessingInstruction.env.CORS_ALLOW_ORIGIN || "*"
+                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
             },
             "statusCode": 400,
             "body": "missing required param 'download_url'"
@@ -33,7 +39,7 @@ exports.lambdaHandler = async (event, context) => {
 
         if (!message.email_to) return {
             "headers": {
-                "Access-Control-Allow-Origin": ProcessingInstruction.env.CORS_ALLOW_ORIGIN || "*"
+                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
             },
             "statusCode": 400,
             "body": "missing required param 'email_to'"
@@ -74,7 +80,7 @@ exports.lambdaHandler = async (event, context) => {
 
         return {
             "headers": {
-                "Access-Control-Allow-Origin": ProcessingInstruction.env.CORS_ALLOW_ORIGIN || "*"
+                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
             },
             "statusCode": 200,
             "body": JSON.stringify(response)
@@ -84,7 +90,7 @@ exports.lambdaHandler = async (event, context) => {
         console.error(err);
         return {
             "headers": {
-                "Access-Control-Allow-Origin": ProcessingInstruction.env.CORS_ALLOW_ORIGIN || "*"
+                "Access-Control-Allow-Origin": process.env.CORS_ALLOW_ORIGIN || "*"
             },
             "statusCode": 500,
             "body": err
