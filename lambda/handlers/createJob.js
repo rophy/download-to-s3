@@ -40,11 +40,30 @@ exports.lambdaHandler = async (event, context) => {
 
         let message = JSON.parse(event.body);
         console.log("message", message);
-        const stepfunctions = new AWS.StepFunctions();
 
         if (!message.download_url) return respond(400, "missing required param 'download_url'");
 
         if (!message.email_to) return respond(400, "missing required param 'email_to'");
+
+        console.log("Verifying email addresses...");
+        const ses = new AWS.SES({apiVersion: '2010-12-01'});
+        let email_to = message.email_to.split(",");
+        let data = await ses.getIdentityVerificationAttributes({
+            Identities: email_to
+        }).promise();
+
+        let unverified = [];
+        email_to.forEach(email => {
+            if (!data.VerificationAttributes[email] || data.VerificationAttributes[email].VerificationStatus != "Success") {
+                unverified.push(email);
+            }
+        });
+        if (unverified.length > 0) {
+            return respond(400, `Some addresses in email_to is not verified. Contact admin to verify the email first: ${unverified}`);
+        }
+
+        console.log("Triggering step function...");
+        const stepfunctions = new AWS.StepFunctions();
 
         let input = {
           "downloader_command": [
