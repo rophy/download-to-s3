@@ -1,0 +1,73 @@
+swagger: '2.0'
+info:
+  version: '1.0'
+  title: download-to-s3
+host: api.rophy.online
+basePath: /downloader
+schemes:
+  - https
+paths:
+  /:
+    post:
+      parameters:
+        - in: body
+          name: Input
+          required: true
+          schema:
+            $ref: '#/definitions/Input'
+      responses:
+        '200':
+          schema:
+            $ref: '#/definitions/SuccessOutput'
+        '400':
+          schema:
+            $ref: '#/definitions/ErrorOutput'
+      security:
+        - api_key: []
+definitions:
+  Input:
+    type: object
+    required:
+      - download_url
+      - email_to
+    properties:
+      download_url:
+        type: string
+        description: direct download link of the file
+        example: 'https://github.com/stedolan/jq/releases/download/jq-1.4/jq-win64.exe'
+        required: true
+      email_to:
+        type: string
+        description: send the s3 download link to this email address
+        example: rophy123+user@gmail.com
+        required: true
+      expires_in:
+        type: number
+        description: 'seconds which the link will expire, default 3600'
+        example: '3600'
+      rename_to:
+        type: string
+        description: specify new name of file after uploaded to S3
+        example: jq-win64.file
+  SuccessOutput:
+    type: object
+    properties:
+      executionArn:
+        type: string
+        description: ID of the download job
+        example: >-
+          arn:aws:states:ap-northeast-1:572921885201:execution:DownloadToS3:0521b170-8cd8-46a7-b95b-a79178664b16
+      startDate:
+        type: string
+        example: '2022-07-31T09:05:31.834Z'
+  ErrorOutput:
+    type: object
+    properties:
+      message:
+        type: string
+        description: the error message
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: x-api-key
+    in: header
