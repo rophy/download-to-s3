@@ -4,7 +4,22 @@ Description: >
   download-to-s3
 
   Download a file, upload to S3, and return a presigned URL.
-  
+
+Parameters:
+  S3Bucket:
+    Type: String
+    AllowedPattern: "[a-z0-9.-]+"
+    Description: Name of your bucket
+  S3Prefix:
+    Type: String
+    Description: Bucket key prefix
+  EmailFrom:
+    Type: String
+    Description: Sender address when using SES
+  CorsAllowOrigin:
+    Type: String
+    Description: If defined, will set CORS origin in API gateway
+
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
@@ -50,10 +65,14 @@ Resources:
               ApiKeyRequired: true
       Environment:
         Variables:
-          BUCKET:
-          PREFIX:
-          EMAIL_FROM: 
+          S3_BUCKET:
+            Ref: S3Bucket
+          S3_PREFIX:
+            Ref: S3Prefix
+          EMAIL_FROM:
+            Ref: EmailFrom
           CORS_ALLOW_ORIGIN:
+            Ref: CorsAllowOrigin
 
 Outputs:
   WebApi:
