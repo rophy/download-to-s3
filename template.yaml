@@ -50,9 +50,10 @@ Resources:
               ApiKeyRequired: true
       Environment:
         Variables:
-          BUCKET: ***REMOVED***
-          PREFIX: shared
-#          CORS_ALLOW_ORIGIN: "'*'"
+          BUCKET:
+          PREFIX:
+          EMAIL_FROM: 
+          CORS_ALLOW_ORIGIN:
 
 Outputs:
   WebApi:

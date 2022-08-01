@@ -1,5 +1,5 @@
 
-["S3_BUCKET","S3_PREFIX"].forEach( envName => {
+["S3_BUCKET","S3_PREFIX","EMAIL_FROM"].forEach( envName => {
     if (!process.env[envName]) throw new Error(`missing env var ${envName}`)
 });
 
@@ -190,7 +190,7 @@ downloader = async () => {
                     }
                 }
             },
-            "Source": "***REMOVED***"
+            "Source": process.env.EMAIL_FROM
         }).promise();
     }
 
