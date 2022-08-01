@@ -179,6 +179,7 @@ Temporary Items
 
 **/.aws-sam
 samconfig.toml
+swagger/
 
 ### Windows ###
 # Windows thumbnail cache files
