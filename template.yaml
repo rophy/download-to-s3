@@ -58,7 +58,7 @@ Resources:
         Download:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
-            Path: /
+            Path: /download
             Method: post
             RestApiId: !Ref ApiGateway
             Auth:
@@ -73,6 +73,28 @@ Resources:
             Ref: EmailFrom
           CORS_ALLOW_ORIGIN:
             Ref: CorsAllowOrigin
+  QueryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: index.queryJob
+      Runtime: nodejs14.x
+      Architectures:
+        - x86_64
+      Events:
+        Query:
+          Type: Api
+          Properties:
+            Path: /query
+            Method: get
+            RestApiId: !Ref ApiGateway
+            Auth:
+              ApiKeyRequired: true
+      Environment:
+        Variables:
+          CORS_ALLOW_ORIGIN:
+            Ref: CorsAllowOrigin
+
 
 Outputs:
   WebApi:
