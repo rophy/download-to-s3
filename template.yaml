@@ -19,6 +19,9 @@ Parameters:
   CorsAllowOrigin:
     Type: String
     Description: If defined, will set CORS origin in API gateway
+  StateMachineArn:
+    Type: String
+    Description: ARN of an existing Step Functions
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -73,6 +76,8 @@ Resources:
             Ref: EmailFrom
           CORS_ALLOW_ORIGIN:
             Ref: CorsAllowOrigin
+          STEPFN_ARN:
+            Ref: StateMachineArn
   QueryFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -85,7 +90,7 @@ Resources:
         Query:
           Type: Api
           Properties:
-            Path: /query
+            Path: /download
             Method: get
             RestApiId: !Ref ApiGateway
             Auth:
@@ -94,6 +99,8 @@ Resources:
         Variables:
           CORS_ALLOW_ORIGIN:
             Ref: CorsAllowOrigin
+          STEPFN_ARN:
+            Ref: StateMachineArn
 
 
 Outputs:

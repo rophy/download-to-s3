@@ -1,0 +1,82 @@
+openapi: '3.0.2'
+info:
+  title: download-to-s3
+  version: "1.0.0"
+servers:
+  - url: https://c752tk1619.execute-api.ap-northeast-1.amazonaws.com/Prod
+paths:
+  /download:
+    post:
+      summary: 'Creates a download job.'
+      requestBody:
+        description: 'Definition of your download request.'
+        content:
+          'application/json':
+            schema:
+              type: object
+              required: ['download_url', 'email_to']
+              properties:
+                download_url:
+                  type: string
+                  description: Direct download link of the file
+                  example: 'https://github.com/stedolan/jq/releases/download/jq-1.4/jq-win64.exe'
+                email_to:
+                  type: string
+                  description: Send the s3 download link to this email address
+                  example: rophy123+user@gmail.com
+                expires_in:
+                  type: number
+                  description: Seconds which the link will expire, default 3600.
+                  example: '3600'
+                rename_to:
+                  type: string
+                  description: Specify new name of file after uploaded to S3.
+                  example: jq-win64.file
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    description: ID of the download job
+                    example: '0521b170-8cd8-46a7-b95b-a79178664b16'
+                  start_date:
+                    type: string
+                    example: '2022-07-31T09:05:31.834Z'
+        '400':
+          description: 'Invalid input'
+        '500':
+          description: 'Unexpected error'
+    get:
+      summary: 'Gets status of a download job.'
+      parameters:
+        - name: job_id
+          description: Job ID obtained from POST /download
+          in: query
+          required: true
+          example: '0521b170-8cd8-46a7-b95b-a79178664b16'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            'application/json':
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    description: ID of the download job
+                    example: '0521b170-8cd8-46a7-b95b-a79178664b16'
+                  start_date:
+                    type: string
+                    example: '2022-07-31T09:05:31.834Z'
+        '400':
+          description: 'Invalid input'
+        '500':
+          description: 'Unexpected error'

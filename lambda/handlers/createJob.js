@@ -88,17 +88,20 @@ exports.lambdaHandler = async (event, context) => {
 
         input = JSON.stringify(input);
 
-        let response = await new Promise((resolve, reject) => {
-            stepfunctions.startExecution({
-                stateMachineArn: "arn:aws:states:ap-northeast-1:572921885201:stateMachine:DownloadToS3",
-                input: input
-            }, (err, response) => {
-                if (err) return reject(err);
-                else return resolve(response);
-            });
-        })
+        data = await stepfunctions.startExecution({
+            stateMachineArn: process.env.STEPFN_ARN,
+            input: input
+        }).promise();
 
-        return respond(200,response);
+        let executionArn = data.executionArn.split(':');
+        jobId = jobId[executionArn.length-1];
+
+        let response = {
+            job_id: jobId,
+            start_date: data.startDate
+        };
+
+        return respond(200, response);
     }
     catch (err) {
         console.error(err);

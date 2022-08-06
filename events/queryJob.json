@@ -1,11 +1,10 @@
 {
-  "body": "{\"executionArn\":\"arn:aws:states:ap-northeast-1:572921885201:execution:DownloadToS3:db2250e0-e3f0-49ea-8997-6f7ad14ff54f\"}",
   "resource": "/{proxy+}",
   "path": "/path/to/resource",
   "httpMethod": "POST",
   "isBase64Encoded": false,
   "queryStringParameters": {
-    "foo": "bar"
+    "job_id": "db2250e0-e3f0-49ea-8997-6f7ad14ff54f"
   },
   "pathParameters": {
     "proxy": "/path/to/resource"

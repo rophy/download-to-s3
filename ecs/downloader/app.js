@@ -130,6 +130,9 @@ downloader = async () => {
             },
             "s3_path": {
                 "S": s3Key
+            },
+            "presigned_url" {
+                "S": presignedUrl
             }
         }
     };

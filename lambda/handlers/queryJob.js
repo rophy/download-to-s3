@@ -36,24 +36,40 @@ function respond(statusCode, body) {
 
 exports.lambdaHandler = async (event, context) => {
     try {
-        if (!event.body) return respond(400, "missing request payload");
+        console.log(event.queryStringParameters);
+        if (!event.queryStringParameters) return respond(400, "missing request payload");
 
-        let message = JSON.parse(event.body);
-        console.log("message", message);
+        let message = event.queryStringParameters;
+        if (!message.job_id) return respond(400, "missing required query 'job_id'");
 
-        if (!message.executionArn) return respond(400, "missing required param 'executionArn'");
+        let arn = process.env.STEPFN_ARN.replace('stateMachine', 'execution');
 
         const stepfunctions = new AWS.StepFunctions();
-        let response = await new Promise((resolve, reject) => {
-            stepfunctions.describeExecution({
-                executionArn: message.executionArn
-            }, (err, response) => {
-                if (err) return reject(err);
-                else return resolve(response);
-            });
-        })
+        let data = await stepfunctions.describeExecution({
+            executionArn: `${arn}:${message.job_id}`
+        }).promise();
 
-        return respond(200,response);
+        let response = {
+            job_id: data.name,
+            status: data.status,
+            start_date: data.startDate,
+            stop_date: data.stopDate,
+            input: data.input && JSON.parse(data.input)
+        };
+
+        if (data.output) {
+            let output = JSON.parse(data.output);
+            if (output.Count > 0) {
+                let item = output.Items[0];
+                response.output = {
+                    s3_path: item.s3_path && item.s3_path.S,
+                    expiration: item.expiration && new Date(parseInt(item.expiration.N)).toISOString(),
+                    presigned_url: item.presigned_url && item.presigned_url.S,
+                };
+            }
+        }
+
+        return respond(200, response);
     }
     catch (err) {
         console.error(err);
