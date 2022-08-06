@@ -51,6 +51,8 @@ paths:
           description: 'Invalid input'
         '500':
           description: 'Unexpected error'
+      security:
+        - api_key: []
     get:
       summary: 'Gets status of a download job.'
       parameters:
@@ -73,10 +75,32 @@ paths:
                     type: string
                     description: ID of the download job
                     example: '0521b170-8cd8-46a7-b95b-a79178664b16'
+                  status:
+                    type: string
+                    example: 'SUCCEEDED'
                   start_date:
                     type: string
                     example: '2022-07-31T09:05:31.834Z'
+                  stop_date:
+                    type: string
+                    example: '2022-07-31T09:05:31.834Z'
+                  output:
+                    type: object
+                    description: If succeeded, output will contain results of the download job.
+                    example:
+                      s3_path: 'path-to-s3'
+                      presigned_url: 'download link'
+                      expiration: 'when the link will be expired'
         '400':
           description: 'Invalid input'
         '500':
           description: 'Unexpected error'
+      security:
+        - api_key: []
+components:
+  securitySchemes:
+    api_key:
+      type: apiKey
+      name: x-api-key
+      in: header
+
