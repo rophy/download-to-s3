@@ -94,7 +94,7 @@ exports.lambdaHandler = async (event, context) => {
         }).promise();
 
         let executionArn = data.executionArn.split(':');
-        jobId = jobId[executionArn.length-1];
+        let jobId = executionArn[executionArn.length-1];
 
         let response = {
             job_id: jobId,
