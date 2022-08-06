@@ -1,12 +1,11 @@
 
-["S3_BUCKET","S3_PREFIX","EMAIL_FROM"].forEach( envName => {
+["S3_BUCKET","S3_PREFIX"].forEach( envName => {
     if (!process.env[envName]) throw new Error(`missing env var ${envName}`)
 });
 
 const argv = require('yargs/yargs')(process.argv.slice(2))
-    .usage('Usage: $0 --download_url=URL [--rename_to=FILE_NAME] [--expires_in=SECONDS] [--emai_to=EMAIL]')
+    .usage('Usage: $0 --download_url=URL [--rename_to=FILE_NAME] [--expires_in=SECONDS]')
     .describe("download_url", "direct download link of the file")
-    .describe("email_to", "send the s3 download link to this email address")
     .describe("expires_in", "[default: 3600] seconds which the link will expire")
     .number("expires_in")
     .default("expires_in", 3600)
@@ -116,85 +115,37 @@ downloader = async () => {
         Key: data.Key,
         Expires: argv.expires_in
     });
-    let expiration = Date.now() + argv.expires_in*1000;
 
-    // Store the state in ddb.
-    console.log("Saving states in dynamodb...");
-    const dynamodb = new AWS.DynamoDB();
 
-    let params = {
-        "TableName": "download-to-s3",
-        "Item": {
-            "expiration": {
-                "N": expiration.toString()
-            },
-            "s3_path": {
-                "S": s3Key
-            },
-            "presigned_url": {
-                "S": presignedUrl
-            }
-        }
-    };
-
-    // Query by sfn_exec_name.
     if (process.env.STEPFUNCTION_EXECUTION_NAME) {
-        params["Item"]["sfn_exec_name"] = {
-            "S": process.env.STEPFUNCTION_EXECUTION_NAME
-        }
-        params["Item"]["pk"] = {
-            "S": process.env.STEPFUNCTION_EXECUTION_NAME
-        };
-        await new Promise((resolve, reject) => {
-            dynamodb.putItem(params, (err, data) => {
-                if (err) return reject(err);
-                else return resolve(data);
-            });
-        });
-    }
 
-    // Query by s3_path.
-    params["Item"]["pk"] = {
-        "S": s3Key
-    };
-    await new Promise((resolve, reject) => {
-        dynamodb.putItem(params, (err, data) => {
-            if (err) return reject(err);
-            else return resolve(data);
-        });
-    });
-
-    // Query by expiration.
-    params["Item"]["pk"] = {
-        "S": "__by_expirations"
-    };
-    await new Promise((resolve, reject) => {
-        dynamodb.putItem(params, (err, data) => {
-            if (err) return reject(err);
-            else return resolve(data);
-        });
-    });
-
-    // Send mail
-    if (argv.email_to) {
-        console.log("Sending email notification...");
-        const ses = new AWS.SES({apiVersion: '2010-12-01'});
-        await ses.sendEmail({
-            "Destination": {
-                "ToAddresses": argv.email_to.split(",")
-            },
-            "Message": {
-                "Subject": {
-                    "Data": "Your requested file is ready for download"
+        console.log("Saving states in dynamodb...");
+        const dynamodb = new AWS.DynamoDB();
+        let expiration = Date.now() + argv.expires_in*1000;
+        let ttl = Math.floor( (Date.now()+3600000)/1000 ).toString();
+        let params = {
+            "TableName": "download-to-s3",
+            "Item": {
+                "sfn_exec_name": {
+                    "S": process.env.STEPFUNCTION_EXECUTION_NAME
                 },
-                "Body": {
-                    "Text": {
-                        "Data": presignedUrl
-                    }
+                "expiration": {
+                    "S": new Date(expiration).toISOString()
+                },
+                "s3_path": {
+                    "S": s3Key
+                },
+                "presigned_url": {
+                    "S": presignedUrl
+                },
+                "ttl": {
+                    "N": ttl
                 }
-            },
-            "Source": process.env.EMAIL_FROM
-        }).promise();
+            }
+        };
+
+        let data = await dynamodb.putItem(params).promise();
+        console.log(data);
     }
 
     console.log(presignedUrl);
