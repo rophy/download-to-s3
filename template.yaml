@@ -22,6 +22,9 @@ Parameters:
   StateMachineArn:
     Type: String
     Description: ARN of an existing Step Functions
+  LimitNewUserDomain:
+    Type: String
+    Description: If defined, e.g. "amazon.com", limit new registration to this email domain
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -101,7 +104,50 @@ Resources:
             Ref: CorsAllowOrigin
           STEPFN_ARN:
             Ref: StateMachineArn
-
+  NewEmailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: index.newEmail
+      Runtime: nodejs14.x
+      Architectures:
+        - x86_64
+      Events:
+        Query:
+          Type: Api
+          Properties:
+            Path: /email
+            Method: post
+            RestApiId: !Ref ApiGateway
+            Auth:
+              ApiKeyRequired: false
+      Environment:
+        Variables:
+          CORS_ALLOW_ORIGIN:
+            Ref: CorsAllowOrigin
+          LIMIT_EMAIL_DOMAIN:
+            Ref: LimitNewUserDomain
+  DeleteEmailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: index.deleteEmail
+      Runtime: nodejs14.x
+      Architectures:
+        - x86_64
+      Events:
+        Query:
+          Type: Api
+          Properties:
+            Path: /email
+            Method: delete
+            RestApiId: !Ref ApiGateway
+            Auth:
+              ApiKeyRequired: false
+      Environment:
+        Variables:
+          CORS_ALLOW_ORIGIN:
+            Ref: CorsAllowOrigin
 
 Outputs:
   WebApi:

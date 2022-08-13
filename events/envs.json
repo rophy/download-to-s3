@@ -1,10 +1,8 @@
 {
-  "MyFunction1": {
-    "TABLE_NAME": "localtable",
-    "BUCKET_NAME": "testBucket"
+  "DownloadFunction": {
+    "STEPFN_ARN": "arn:aws:states:ap-northeast-1:572921885201:stateMachine:DownloadToS3"
   },
   "QueryFunction": {
-    "STEPFN_ARN": "arn:aws:states:ap-northeast-1:572921885201:stateMachine:DownloadToS3",
-    "STAGE": "dev"
+    "STEPFN_ARN": "arn:aws:states:ap-northeast-1:572921885201:stateMachine:DownloadToS3"
   }
 }
