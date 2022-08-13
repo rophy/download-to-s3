@@ -1,8 +1,6 @@
 const AWS = require("aws-sdk");
 const assert = require("assert");
 
-assert(process.env.USAGE_PLAN_ID, "missing env var `USAGE_PLAN_ID`");
-
 /**
  *
  * Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
@@ -38,7 +36,10 @@ function respond(statusCode, body) {
 }
 
 exports.lambdaHandler = async (event, context) => {
+
     try {
+        assert(process.env.USAGE_PLAN_ID, "missing env var `USAGE_PLAN_ID`");
+
         if (!event.body) return respond(400, "missing request payload");
 
         let message = JSON.parse(event.body);

@@ -35,6 +35,12 @@ function respond(statusCode, body) {
     }
 }
 
+function validateEmail(email) {
+    return email.match(
+        /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+    );
+};
+
 exports.lambdaHandler = async (event, context) => {
     try {
         if (!event.body) return respond(400, "missing request payload");
@@ -43,9 +49,21 @@ exports.lambdaHandler = async (event, context) => {
         console.log("message", message);
 
         if (!message.email) return respond(400, "missing required param 'email'");
-        if (typeof message.email !== 'string') return respond(400, "email must be a string");
 
         let email = message.email;
+
+        if (typeof email !== 'string') return respond(400, "email must be a string");
+        if (!validateEmail(email)) return respond(400, "invalid email format");
+        if (process.env.LIMIT_EMAIL_DOMAIN) {
+            let domain = process.env.LIMIT_EMAIL_DOMAIN;
+
+            // domain must match suffix of email.
+            if (email.indexOf(domain) + domain.length !== email.length) {
+                return respond(400, `only accepts email domain: ${domain}`);
+            }
+
+        }
+
 
         console.log("Verifying email addresses...");
         const sesv2 = new AWS.SESV2();
