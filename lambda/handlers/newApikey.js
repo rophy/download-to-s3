@@ -63,32 +63,32 @@ exports.lambdaHandler = async (event, context) => {
         console.log("Check if apikey already exists...");
         data = await apigateway.getApiKeys({
             nameQuery: email,
-            includeValues: false
+            includeValues: true
         }).promise();
+
+        let apikey = null;
 
         if (data.items.length > 0) {
-            if (!message.recreate) {
-                return respond(409, "Apikey already exists. To regenerate, add parameter `recreate=true`");
+            if (!message.resend) {
+                return respond(409, "Apikey already exists. To send existing one to your mail, add parameter `resend=true`");
             }
-            data = await apigateway.deleteApiKey({
-                apiKey: data.items[0].id
+            apikey = data.items[0].value;
+        } else {
+            // data.items.length == 0
+            console.log("Creating apikey...");
+            data = await apigateway.createApiKey({
+                enabled: true,
+                name: email
             }).promise();
-            console.log("deleteApiKey", data);
+            apikey = data.value;            
+            console.log("Associating with usage plan...");
+            data = await apigateway.createUsagePlanKey({
+                keyId: data.id,
+                keyType: "API_KEY",
+                usagePlanId: process.env.USAGE_PLAN_ID
+            }).promise();
         }
 
-        // data.items.length == 0
-        console.log("Creating apikey...");
-        let keyData = await apigateway.createApiKey({
-            enabled: true,
-            name: email
-        }).promise();
-
-        console.log("Associating with usage plan...");
-        data = await apigateway.createUsagePlanKey({
-            keyId: keyData.id,
-            keyType: "API_KEY",
-            usagePlanId: process.env.USAGE_PLAN_ID
-        }).promise();
 
         console.log("Sending apikey via email...");
         let body = {
@@ -96,7 +96,7 @@ exports.lambdaHandler = async (event, context) => {
                 Simple: {
                     Body: {
                         Text: {
-                            Data: `Your apikey is: ${keyData.value}`
+                            Data: `Your apikey is: ${apikey}`
                         }
                     },
                     Subject: {
