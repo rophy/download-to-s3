@@ -25,6 +25,9 @@ Parameters:
   LimitNewUserDomain:
     Type: String
     Description: If defined, e.g. "amazon.com", limit new registration to this email domain
+  UsagePlanId:
+    Type: String
+    Description: Set this after inital deployment.
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -52,6 +55,15 @@ Resources:
         EndpointConfiguration: REGIONAL
         BasePath:
           - downloader
+      Auth:
+        ApiKeyRequired: true
+  UsagePlan:
+    Type: 'AWS::ApiGateway::UsagePlan'
+    Properties:
+      UsagePlanName: Standard
+      ApiStages:
+        - ApiId: !Ref ApiGateway
+          Stage: Prod
   DownloadFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -62,7 +74,7 @@ Resources:
         - x86_64
       Events:
         Download:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Type: Api
           Properties:
             Path: /download
             Method: post
@@ -148,6 +160,30 @@ Resources:
         Variables:
           CORS_ALLOW_ORIGIN:
             Ref: CorsAllowOrigin
+  NewApikeyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: index.newApikey
+      Runtime: nodejs14.x
+      Architectures:
+        - x86_64
+      Events:
+        Query:
+          Type: Api
+          Properties:
+            Path: /apikey
+            Method: post
+            RestApiId: !Ref ApiGateway
+            Auth:
+              ApiKeyRequired: false
+      Environment:
+        Variables:
+          CORS_ALLOW_ORIGIN:
+            Ref: CorsAllowOrigin
+          USAGE_PLAN_ID:
+            Ref: UsagePlanId
+
 
 Outputs:
   WebApi:
@@ -159,3 +195,5 @@ Outputs:
   DownloadFunctionIamRole:
     Description: "Implicit IAM Role created for the function"
     Value: !GetAtt DownloadFunctionRole.Arn
+  UsagePlanId:
+    Value: !Ref UsagePlan
