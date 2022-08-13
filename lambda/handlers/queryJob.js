@@ -54,20 +54,9 @@ exports.lambdaHandler = async (event, context) => {
             status: data.status,
             start_date: data.startDate,
             stop_date: data.stopDate,
-            input: data.input && JSON.parse(data.input)
+            input: data.input && JSON.parse(data.input),
+            output: data.output && JSON.parse(data.output)
         };
-
-        if (data.output) {
-            let output = JSON.parse(data.output);
-            if (output.Count > 0) {
-                let item = output.Items[0];
-                response.output = {
-                    s3_path: item.s3_path && item.s3_path.S,
-                    expiration: item.expiration && new Date(parseInt(item.expiration.N)).toISOString(),
-                    presigned_url: item.presigned_url && item.presigned_url.S,
-                };
-            }
-        }
 
         return respond(200, response);
     }

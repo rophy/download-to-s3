@@ -66,14 +66,13 @@ exports.lambdaHandler = async (event, context) => {
         const stepfunctions = new AWS.StepFunctions();
 
         let input = {
-          "downloader_command": [
-            "node",
-            "app.js",
-            "--download_url",
-            message.download_url,
-            "--email_to",
-            message.email_to
-          ]
+            email_to: message.email_to.split(","),
+            downloader_command: [
+                "node",
+                "app.js",
+                "--download_url",
+                message.download_url
+            ]
         };
 
         if (message.rename_to) {
